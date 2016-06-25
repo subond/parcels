@@ -1,8 +1,10 @@
 numpy>=1.9.1
 scipy>=0.16.0
+mpi4py
 netcdf4>=1.1.9
 flake8>=2.1.0
 pytest>=2.7.0
+pytest-xdist
 py>=1.4.27
 pymbolic
 cgen
