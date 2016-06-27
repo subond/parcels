@@ -1,4 +1,5 @@
-from parcels.field import Field, UnitConverter, Geographic, GeographicPolar
+from parcels.field import Field, DataPartition
+from parcels.field import UnitConverter, Geographic, GeographicPolar
 from parcels.particle import ParticleSet
 import numpy as np
 from py import path
@@ -64,18 +65,26 @@ class Grid(object):
         depth = np.zeros(1, dtype=np.float32) if depth is None else depth
         time = np.zeros(1, dtype=np.float64) if time is None else time
         u_units, v_units = unit_converters(mesh)
+        # Create partitioning in parallel
+        part_u = DataPartition(lon_u.size, lat_u.size)
+        part_v = DataPartition(lon_v.size, lat_v.size)
         # Create velocity fields
-        ufield = Field('U', data_u, lon_u, lat_u, depth=depth,
-                       time=time, transpose=transpose,
+        ufield = Field('U', data_u[part_u.yrange, part_u.xrange],
+                       lon_u[part_u.xrange], lat_u[part_u.yrange],
+                       depth=depth, time=time, transpose=transpose,
                        units=u_units, **kwargs)
-        vfield = Field('V', data_v, lon_v, lat_v, depth=depth,
-                       time=time, transpose=transpose,
+        vfield = Field('V', data_v[part_v.yrange, part_v.xrange],
+                       lon_v[part_v.xrange], lat_v[part_v.yrange],
+                       depth=depth, time=time, transpose=transpose,
                        units=v_units, **kwargs)
         # Create additional data fields
         fields = {}
         for name, data in field_data.items():
-            fields[name] = Field(name, data, lon_v, lat_u, depth=depth,
-                                 time=time, transpose=transpose, **kwargs)
+            part_f = DataPartition(lon_v.size, lat_u.size)
+            fields[name] = Field(name, data[part_f.yrange, part_f.xrange],
+                                 lon_v[part_f.xrange], lat_u[part_f.yrange],
+                                 depth=depth, time=time, transpose=transpose,
+                                 **kwargs)
         return cls(ufield, vfield, depth, time, fields=fields)
 
     @classmethod
