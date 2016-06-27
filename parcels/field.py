@@ -9,6 +9,8 @@ from ctypes import Structure, c_int, c_float, c_double, POINTER
 from netCDF4 import Dataset, num2date
 from math import cos, pi
 from datetime import timedelta
+from mpi4py import MPI
+from math import ceil
 try:
     import matplotlib.pyplot as plt
 except:
@@ -45,6 +47,42 @@ def CentralDifferences(field_data, lat, lon):
         dVdx[len(lon)-1, y] = (field_data[len(lon)-1, y] - field_data[len(lon)-2, y]) / dx[len(lon)-2, y]
 
     return [dVdx, dVdy]
+
+
+class DataPartition(object):
+    """Container class for partition information.
+
+    The partitioning is computed via recursive bisection in x and y.
+
+    :param numx: Max number of data items in x direction
+    :param numy: Max number of data items in y direction
+    """
+
+    def __init__(self, numx, numy):
+        """Compute the x and y index ranges using recursive bisection."""
+        self.rank = MPI.COMM_WORLD.rank
+        self.nprocs = MPI.COMM_WORLD.size
+        if self.nprocs <= 1:
+            # In serial use natural grid bounds
+            self.xrange = slice(0, numx)
+            self.yrange = slice(0, numy)
+            return
+        rr = [0, self.nprocs - 1]
+        pmin = [0, 0]
+        pmax = [numx, numy]
+        i = 0
+        while rr[1] - rr[0] > 0:
+            h = rr[0] + ceil(float(rr[1] - rr[0]) / 2.)
+            split = pmin[i] + int(ceil(float(pmax[i] - pmin[i]) / 2.))
+            if self.rank >= h:
+                pmin[i] = split
+                rr[0] = h
+            else:
+                pmax[i] = split
+                rr[1] = h - 1
+            i = (i + 1) % 2
+        self.xrange = slice(pmin[0], pmax[0])
+        self.yrange = slice(pmin[1], pmax[1])
 
 
 class UnitConverter(object):
