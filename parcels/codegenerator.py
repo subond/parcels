@@ -1,4 +1,6 @@
 from parcels.field import Field
+from parcels.codegen.converter import IRConverter, CodeGenerator
+
 import ast
 import cgen as c
 from collections import OrderedDict
@@ -267,6 +269,9 @@ class KernelGenerator(ast.NodeVisitor):
         # Untangle Pythonic tuple-assignment statements
         py_ast = TupleSplitter().visit(py_ast)
 
+        # Generate internal representation (IR) from Python AST
+        self.ir = IRConverter(self.grid, self.ptype).visit(py_ast)
+
         # Replace occurences of intrinsic objects in Python AST
         transformer = IntrinsicTransformer(self.grid, self.ptype)
         py_ast = transformer.visit(py_ast)
@@ -274,6 +279,12 @@ class KernelGenerator(ast.NodeVisitor):
         # Generate C-code for all nodes in the Python AST
         self.visit(py_ast)
         self.ccode = py_ast.ccode
+
+        ccode_decl = self.kernel_header(name=self.ir.name)
+        ccode_body = CodeGenerator().generate(self.ir)
+
+        ccode_body += [c.Statement("return SUCCESS")]
+        self.ccode = c.FunctionBody(ccode_decl, c.Block(ccode_body))
 
         # Insert variable declarations for non-instrinsics
         for kvar in self.kernel_vars + self.array_vars:
@@ -286,6 +297,17 @@ class KernelGenerator(ast.NodeVisitor):
             self.ccode.body.insert(0, c.Value("float", ", ".join(transformer.tmp_vars)))
 
         return self.ccode
+
+    def kernel_header(self, name):
+        # Create function declaration and argument list
+        decl = c.Static(c.DeclSpecifier(c.Value("ErrorCode", name), spec='inline'))
+        args = [c.Pointer(c.Value(self.ptype.name, "particle")),
+                c.Value("double", "time"), c.Value("float", "dt")]
+        for field, _ in self.field_args.items():
+            args += [c.Pointer(c.Value("CField", "%s" % field))]
+        for const, _ in self.const_args.items():
+            args += [c.Value("float", const)]
+        return c.FunctionDeclaration(decl, args)
 
     def visit_FunctionDef(self, node):
         # Generate "ccode" attribute by traversing the Python AST
