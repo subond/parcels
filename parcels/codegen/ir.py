@@ -112,10 +112,10 @@ class FieldEvalIntrinsic(Node):
 
     _fields = ['args']
 
-    def __init__(self, field, args, var=None):
+    def __init__(self, field, args):
         self.field = field
         self.args = args
-        self.var = var or Variable('_TMP')
+        self.var = None
 
     def __repr__(self):
         return 'FIELD_EVAL:%s %s:' % (self.field.name, self.args)

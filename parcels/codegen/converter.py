@@ -75,21 +75,50 @@ class IRConverter(ast.NodeTransformer):
         return ir.FieldEvalIntrinsic(field.field, args)
 
 
+class HoistFieldEvaluation(ast.NodeTransformer):
+    """Hoists field evaluation to the root level and assign
+    temporaries instead.
+
+    """
+
+    def __init__(self, ):
+        self.statements = []
+        self._tmp_counter = 0
+
+    def get_temporary(self):
+        """Create a new temporary variable name"""
+        tmp = "tmp%d" % self._tmp_counter
+        self._tmp_counter += 1
+        return tmp
+
+    def visit_Root(self, node):
+        name = node.name
+        for child in node.children:
+            # Build a global list of root statements
+            # that the field eval method can add to
+            self.statements += [self.visit(child)]
+        return ir.Root(name=name, nodes=self.statements)
+
+    def visit_FieldEvalIntrinsic(self, node):
+        """Insert temporary and add eval call to root statements"""
+        variable = ir.Variable(name=self.get_temporary())
+        node.var = variable
+        self.statements += [node]
+        return variable
+
+
 class CodeGenerator(ast.NodeVisitor):
     """IR visitor that generates the final C code.
 
     """
 
-    def __init__(self):
-        self.statements = []
-
     def generate(self, ast):
-        self.visit(ast)
-        return self.statements
+        assert(isinstance(ast, ir.Root))
+        return self.visit(ast)
 
     def generic_visit(self, node):
-        body = [self.visit(c) for c in ast.iter_child_nodes(node)]
-        return "<%s: %s>" % (type(node).__name__, body)
+        body = [self.visit(child) for child in ast.iter_child_nodes(node)]
+        return c.Comment("<%s: %s>" % (type(node).__name__, body))
 
     def visit_Root(self, node):
         return [self.visit(c) for c in node.children]
@@ -107,11 +136,16 @@ class CodeGenerator(ast.NodeVisitor):
     def visit_Assign(self, node):
         target = self.visit(node.target)
         expr = self.visit(node.expr)
-        self.statements += [c.Statement('%s %s %s' % (target, node.op, expr))]
+        return c.Statement('%s %s %s' % (target, node.op, expr))
 
     def visit_FieldIntrinsic(self, node):
         return 'grid->%s' % node.field.name
 
     def visit_FieldEvalIntrinsic(self, node):
+        var = self.visit(node.var)
         args = [self.visit(arg) for arg in node.args]
-        return 'FIELD_EVAL<%s: %s>' % (node.field.name, args)
+        ccode_eval = node.field.ccode_eval(var, *args)
+        ccode_conv = node.field.ccode_convert(*args)
+        return c.Block([c.Assign("err", ccode_eval),
+                        c.Statement("%s *= %s" % (var, ccode_conv)),
+                        c.Statement("CHECKERROR(err)")])

@@ -1,5 +1,5 @@
 from parcels.field import Field
-from parcels.codegen.converter import IRConverter, CodeGenerator
+from parcels.codegen.converter import IRConverter, CodeGenerator, HoistFieldEvaluation
 
 import ast
 import cgen as c
@@ -271,6 +271,8 @@ class KernelGenerator(ast.NodeVisitor):
 
         # Generate internal representation (IR) from Python AST
         self.ir = IRConverter(self.grid, self.ptype).visit(py_ast)
+
+        self.ir = HoistFieldEvaluation().visit(self.ir)
 
         # Replace occurences of intrinsic objects in Python AST
         transformer = IntrinsicTransformer(self.grid, self.ptype)
