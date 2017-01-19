@@ -47,8 +47,10 @@ class IRConverter(ast.NodeTransformer):
             return ir.GridIntrinsic(self.grid)
         elif node.id == 'particle':
             return ir.ParticleIntrinsic(self.ptype)
+        elif node.id in ['time', 'dt']:
+            return ir.Variable(node.id, declared=True)
         else:
-            return ir.Variable(node.id)
+            return ir.Variable(node.id, declared=False)
 
     def visit_Num(self, node):
         return ir.Constant(node.n)
@@ -73,6 +75,33 @@ class IRConverter(ast.NodeTransformer):
         assert(isinstance(field, ir.FieldIntrinsic))
         args = self.visit(node.slice)
         return ir.FieldEvalIntrinsic(field.field, args)
+
+
+class VariableFinder(ast.NodeVisitor):
+    """Utitility visitor to identify local variables for declaration
+
+    """
+
+    def __init__(self, ast):
+        self._undeclared = set()
+        self._fields = set()
+
+        self.visit(ast)
+
+    @property
+    def fields(self):
+        return sorted(list(self._fields))
+
+    @property
+    def undeclared(self):
+        return sorted(list(self._undeclared))
+
+    def visit_Variable(self, node):
+        if not node.declared:
+            self._undeclared.update([node.name])
+
+    def visit_FieldEvalIntrinsic(self, node):
+        self._fields.update([node.field.name])
 
 
 class HoistFieldEvaluation(ast.NodeTransformer):

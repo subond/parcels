@@ -41,8 +41,9 @@ class Constant(Node):
 class Variable(Node):
     """Scalar variable with optional type"""
 
-    def __init__(self, name):
+    def __init__(self, name, declared=False):
         self.name = name
+        self.declared = declared
 
     def __repr__(self):
         return "<%s %s>" % (type(self).__name__, self.name)
@@ -104,7 +105,7 @@ class ParticleIntrinsic(Node):
 
     def __getattr__(self, attr):
         assert(attr in [v.name for v in self.ptype.variables])
-        return Variable(name='particle->%s' % attr)
+        return Variable(name='particle->%s' % attr, declared=True)
 
 
 class FieldEvalIntrinsic(Node):

@@ -1,5 +1,7 @@
 from parcels.field import Field
-from parcels.codegen.converter import IRConverter, CodeGenerator, HoistFieldEvaluation
+from parcels.codegen.converter import (
+    IRConverter, CodeGenerator, HoistFieldEvaluation, VariableFinder
+)
 
 import ast
 import cgen as c
@@ -272,31 +274,30 @@ class KernelGenerator(ast.NodeVisitor):
         # Generate internal representation (IR) from Python AST
         self.ir = IRConverter(self.grid, self.ptype).visit(py_ast)
 
+        # Move field evaluation calls to root level via temporaries
         self.ir = HoistFieldEvaluation().visit(self.ir)
 
-        # Replace occurences of intrinsic objects in Python AST
-        transformer = IntrinsicTransformer(self.grid, self.ptype)
-        py_ast = transformer.visit(py_ast)
+        # Find various types of local kernel variables
+        variables = VariableFinder(self.ir)
+        for field in variables.fields:
+            self.field_args[field] = getattr(self.grid, field)
 
-        # Generate C-code for all nodes in the Python AST
-        self.visit(py_ast)
-        self.ccode = py_ast.ccode
+        # Create function header and local variable declarations
+        ccode_header = self.kernel_header(name=self.ir.name)
+        ccode_decl = [c.Value("float", ", ".join(variables.undeclared))]
 
-        ccode_decl = self.kernel_header(name=self.ir.name)
+        # Generate kernel body and add default return value
         ccode_body = CodeGenerator().generate(self.ir)
-
         ccode_body += [c.Statement("return SUCCESS")]
-        self.ccode = c.FunctionBody(ccode_decl, c.Block(ccode_body))
+
+        # Generate final kernel code from its components
+        self.ccode = c.FunctionBody(ccode_header, c.Block(ccode_decl + ccode_body))
 
         # Insert variable declarations for non-instrinsics
         for kvar in self.kernel_vars + self.array_vars:
             if kvar in funcvars:
                 funcvars.remove(kvar)
         self.ccode.body.insert(0, c.Value('ErrorCode', 'err'))
-        if len(funcvars) > 0:
-            self.ccode.body.insert(0, c.Value("float", ", ".join(funcvars)))
-        if len(transformer.tmp_vars) > 0:
-            self.ccode.body.insert(0, c.Value("float", ", ".join(transformer.tmp_vars)))
 
         return self.ccode
 
