@@ -2,6 +2,7 @@ from parcels.grid import Grid
 from parcels.field import Field
 from parcels.particle import ParticleType
 import ast
+import math
 
 
 class Node(ast.AST):
@@ -37,6 +38,9 @@ class Constant(Node):
     def __init__(self, value):
         self.value = value
 
+    def __repr__(self):
+        return "<%s %s>" % (type(self).__name__, self.value)
+
 
 class Variable(Node):
     """Scalar variable with optional type"""
@@ -66,6 +70,20 @@ class Assign(Node):
     @property
     def children(self):
         return [self.target, self.expr]
+
+
+class UnaryOperator(Node):
+    """Unary operator, similar to a function call"""
+
+    _fields= ['expr']
+
+    def __init__(self, op, expr):
+        self.op = op
+        self.expr = expr
+
+    def __repr__(self):
+        expr = [str(c) for c in self.expr]
+        return "<%s %s: %s>" % (type(self).__name__, self.op, expr)
 
 
 class BinaryOperator(Node):
@@ -120,3 +138,13 @@ class ParticleIntrinsic(Node):
     def __getattr__(self, attr):
         assert(attr in [v.name for v in self.ptype.variables])
         return Variable(name='particle->%s' % attr, declared=True)
+
+
+class MathIntrinsic(Node):
+
+    symbol_map = {'pi': 'M_PI', 'e': 'M_E'}
+
+    def __getattr__(self, attr):
+        if attr in self.symbol_map:
+            attr = self.symbol_map[attr]
+        return Constant(attr)

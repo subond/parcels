@@ -49,6 +49,8 @@ class IRConverter(ast.NodeTransformer):
             return ir.ParticleIntrinsic(self.ptype)
         elif node.id in ['time', 'dt']:
             return ir.Variable(node.id, declared=True)
+        elif node.id == 'math':
+            return ir.MathIntrinsic()
         else:
             return ir.Variable(node.id, declared=False)
 
@@ -59,6 +61,11 @@ class IRConverter(ast.NodeTransformer):
         return ir.BinaryOperator(expr1=self.visit(node.left),
                                  expr2=self.visit(node.right),
                                  op=op2str[type(node.op)])
+
+    def visit_Call(self, node):
+        f = self.visit(node.func)
+        args = [self.visit(arg) for arg in node.args]
+        return ir.UnaryOperator(op=f, expr=args)
 
     def visit_Attribute(self, node):
         obj = self.visit(node.value)
@@ -157,6 +164,11 @@ class CodeGenerator(ast.NodeVisitor):
 
     def visit_Variable(self, node):
         return node.name
+
+    def visit_UnaryOperator(self, node):
+        op = self.visit(node.op)
+        args = [str(self.visit(arg)) for arg in node.expr]
+        return '%s(%s)' % (op, ', '.join(args))
 
     def visit_BinaryOperator(self, node):
         return '(%s %s %s)' % (self.visit(node.children[0]), node.op,
