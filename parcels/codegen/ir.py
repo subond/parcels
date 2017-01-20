@@ -96,18 +96,6 @@ class FieldIntrinsic(Node):
         self.field = field
 
 
-class ParticleIntrinsic(Node):
-    """Intrinsic node representing `particle`"""
-
-    def __init__(self, ptype):
-        assert(isinstance(ptype, ParticleType))
-        self.ptype = ptype
-
-    def __getattr__(self, attr):
-        assert(attr in [v.name for v in self.ptype.variables])
-        return Variable(name='particle->%s' % attr, declared=True)
-
-
 class FieldEvalIntrinsic(Node):
     """Intrinsic node representing a field evaluation call"""
 
@@ -120,3 +108,15 @@ class FieldEvalIntrinsic(Node):
 
     def __repr__(self):
         return 'FIELD_EVAL:%s %s:' % (self.field.name, self.args)
+
+
+class ParticleIntrinsic(Node):
+    """Intrinsic node representing `particle`"""
+
+    def __init__(self, ptype):
+        assert(isinstance(ptype, ParticleType))
+        self.ptype = ptype
+
+    def __getattr__(self, attr):
+        assert(attr in [v.name for v in self.ptype.variables])
+        return Variable(name='particle->%s' % attr, declared=True)
