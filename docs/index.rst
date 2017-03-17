@@ -15,6 +15,15 @@ Its code is licensed under an `open source MIT license <https://github.com/Ocean
    
    *Animation of virtual particles carried by ocean surface flow in the* `Agulhas Current <https://en.wikipedia.org/wiki/Agulhas_Current>`_ *off South Africa. The particles are advected with* `Parcels <http://oceanparcels.org/>`_ *in data from the* `GlobCurrent Project <http://globcurrent.ifremer.fr/products-data/products-overview>`_. *See* `this tutorial <http://nbviewer.jupyter.org/github/OceanPARCELS/parcels/blob/master/examples/tutorial_Agulhasparticles.ipynb>`_ *for the Parcels code behind this animated gif.*
 
+Postdoc and PhD positions available in Parcels development
+===================================
+
+Through the "Tracking Of Plastic In Our Seas", funded by the European Research Council, we are currently advertising two positions to further develop and work with Parcels. Application deadline for both positions is 14 April 2017.
+
+We are looking for a postdoc with very strong programming skills to further develop the Parcels framework, and help apply it to the dispersion of plastic in the ocean. `See here for a more detailed description. <https://www.academictransfer.com/employer/UU/vacancy/38805/lang/en/>`_
+
+We are looking for a PhD candidate to develop code and parameterisations to make the particles from the Parcels framework behave like plastic. `See here for a more detailed description. <https://www.academictransfer.com/employer/UU/vacancy/38804/lang/en/>`_ de
+
 Parcels development status
 ===================================
 
