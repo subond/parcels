@@ -78,7 +78,7 @@ class FieldSet(object):
             time = np.zeros(1, dtype=np.float64) if 'time' not in dims else dims['time']
 
             fields[name] = Field(name, datafld, lon, lat, depth=depth,
-                                 time=time, transpose=transpose, units=units[name],
+                                 time=time, transpose=transpose, units=units[name], mesh=mesh,
                                  allow_time_extrapolation=allow_time_extrapolation, **kwargs)
         u = fields.pop('U')
         v = fields.pop('V')
@@ -133,7 +133,7 @@ class FieldSet(object):
             dims['data'] = name
             inds = indices[var] if var in indices else indices
 
-            fields[var] = Field.from_netcdf(var, dims, paths, inds, units=units[var],
+            fields[var] = Field.from_netcdf(var, dims, paths, inds, units=units[var], mesh=mesh,
                                             allow_time_extrapolation=allow_time_extrapolation, **kwargs)
         u = fields.pop('U')
         v = fields.pop('V')

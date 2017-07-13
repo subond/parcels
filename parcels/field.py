@@ -140,13 +140,14 @@ class Field(object):
            Data above this value are set to zero
     :param time_origin: Time origin of the time axis
     :param units: type of units of the field (meters or degrees)
+    :param mesh: type of mesh of the field (flat or spherical)
     :param interp_method: Method for interpolation
     :param allow_time_extrapolation: boolean whether to allow for extrapolation
     """
 
     def __init__(self, name, data, lon, lat, depth=None, time=None,
                  transpose=False, vmin=None, vmax=None, time_origin=0, units=None,
-                 interp_method='linear', allow_time_extrapolation=None):
+                 mesh='spherical', interp_method='linear', allow_time_extrapolation=None):
         self.name = name
         self.data = data
         self.lon = lon
@@ -156,6 +157,7 @@ class Field(object):
         self.time_origin = time_origin
         self.units = units if units is not None else UnitConverter()
         self.interp_method = interp_method
+        self.mesh = mesh
         if allow_time_extrapolation is None:
             self.allow_time_extrapolation = True if time is None else False
         else:
