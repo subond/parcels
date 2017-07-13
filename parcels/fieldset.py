@@ -1,4 +1,4 @@
-from parcels.field import Field, UnitConverter, Geographic, GeographicPolar
+from parcels.field import Field, DistanceConverter, Geographic, GeographicPolar
 from parcels.loggers import logger
 import numpy as np
 from os import path
@@ -10,20 +10,20 @@ from collections import defaultdict
 __all__ = ['FieldSet']
 
 
-def unit_converters(mesh):
-    """Helper function that assigns :class:`UnitConverter` objects to
+def distance_converters(mesh):
+    """Helper function that assigns :class:`DistanceConverter` objects to
     :class:`Field` objects on :class:`FieldSet`
 
     :param mesh: mesh type (either `spherical` or `flat`)"""
     if mesh == 'spherical':
-        u_units = GeographicPolar()
-        v_units = Geographic()
+        distance_converter_u = GeographicPolar()
+        distance_converter_v = Geographic()
     elif mesh == 'flat':
-        u_units = None
-        v_units = None
+        distance_converter_u = None
+        distance_converter_v = None
     else:
         raise ValueError("Unsupported mesh type. Choose either: 'spherical' or 'flat'")
-    return u_units, v_units
+    return distance_converter_u, distance_converter_v
 
 
 class FieldSet(object):
@@ -64,9 +64,9 @@ class FieldSet(object):
         :param allow_time_extrapolation: boolean whether to allow for extrapolation
         """
 
-        u_units, v_units = unit_converters(mesh)
-        units = defaultdict(UnitConverter)
-        units.update({'U': u_units, 'V': v_units})
+        dist_converter_u, dist_converter_v = distance_converters(mesh)
+        dist_converters = defaultdict(DistanceConverter)
+        dist_converters.update({'U': dist_converter_u, 'V': dist_converter_v})
         fields = {}
         for name, datafld in data.items():
             # Use dimensions[name] if dimensions is a dict of dicts
@@ -78,8 +78,8 @@ class FieldSet(object):
             time = np.zeros(1, dtype=np.float64) if 'time' not in dims else dims['time']
 
             fields[name] = Field(name, datafld, lon, lat, depth=depth,
-                                 time=time, transpose=transpose, units=units[name], mesh=mesh,
-                                 allow_time_extrapolation=allow_time_extrapolation, **kwargs)
+                                 time=time, transpose=transpose, dist_converter=dist_converters[name],
+                                 mesh=mesh, allow_time_extrapolation=allow_time_extrapolation, **kwargs)
         u = fields.pop('U')
         v = fields.pop('V')
         return cls(u, v, fields=fields)
@@ -111,10 +111,10 @@ class FieldSet(object):
         :param allow_time_extrapolation: boolean whether to allow for extrapolation
         """
 
-        # Determine unit converters for all fields
-        u_units, v_units = unit_converters(mesh)
-        units = defaultdict(UnitConverter)
-        units.update({'U': u_units, 'V': v_units})
+        # Determine distance converters for all fields
+        dist_converter_u, dist_converter_v = distance_converters(mesh)
+        dist_converters = defaultdict(DistanceConverter)
+        dist_converters.update({'U': dist_converter_u, 'V': dist_converter_v})
         fields = {}
         for var, name in variables.items():
             # Resolve all matching paths for the current variable
@@ -133,8 +133,8 @@ class FieldSet(object):
             dims['data'] = name
             inds = indices[var] if var in indices else indices
 
-            fields[var] = Field.from_netcdf(var, dims, paths, inds, units=units[var], mesh=mesh,
-                                            allow_time_extrapolation=allow_time_extrapolation, **kwargs)
+            fields[var] = Field.from_netcdf(var, dims, paths, inds, dist_converter=dist_converters[var],
+                                            mesh=mesh, allow_time_extrapolation=allow_time_extrapolation, **kwargs)
         u = fields.pop('U')
         v = fields.pop('V')
         return cls(u, v, fields=fields)
