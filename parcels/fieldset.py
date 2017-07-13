@@ -10,20 +10,20 @@ from collections import defaultdict
 __all__ = ['FieldSet']
 
 
-def distance_converters(mesh):
+def data_converters_func(mesh):
     """Helper function that assigns :class:`DistanceConverter` objects to
     :class:`Field` objects on :class:`FieldSet`
 
     :param mesh: mesh type (either `spherical` or `flat`)"""
     if mesh == 'spherical':
-        distance_converter_u = GeographicPolar()
-        distance_converter_v = Geographic()
+        data_converter_u = GeographicPolar()
+        data_converter_v = Geographic()
     elif mesh == 'flat':
-        distance_converter_u = None
-        distance_converter_v = None
+        data_converter_u = None
+        data_converter_v = None
     else:
         raise ValueError("Unsupported mesh type. Choose either: 'spherical' or 'flat'")
-    return distance_converter_u, distance_converter_v
+    return data_converter_u, data_converter_v
 
 
 class FieldSet(object):
@@ -64,9 +64,10 @@ class FieldSet(object):
         :param allow_time_extrapolation: boolean whether to allow for extrapolation
         """
 
-        dist_converter_u, dist_converter_v = distance_converters(mesh)
-        dist_converters = defaultdict(DistanceConverter)
-        dist_converters.update({'U': dist_converter_u, 'V': dist_converter_v})
+        data_converter_u, data_converter_v = data_converters_func(mesh)
+        data_converters = defaultdict(DistanceConverter)
+        data_converters.update({'U': data_converter_u, 'V': data_converter_v})
+
         fields = {}
         for name, datafld in data.items():
             # Use dimensions[name] if dimensions is a dict of dicts
@@ -78,7 +79,7 @@ class FieldSet(object):
             time = np.zeros(1, dtype=np.float64) if 'time' not in dims else dims['time']
 
             fields[name] = Field(name, datafld, lon, lat, depth=depth,
-                                 time=time, transpose=transpose, dist_converter=dist_converters[name],
+                                 time=time, transpose=transpose, data_converter=data_converters[name],
                                  mesh=mesh, allow_time_extrapolation=allow_time_extrapolation, **kwargs)
         u = fields.pop('U')
         v = fields.pop('V')
@@ -112,9 +113,9 @@ class FieldSet(object):
         """
 
         # Determine distance converters for all fields
-        dist_converter_u, dist_converter_v = distance_converters(mesh)
-        dist_converters = defaultdict(DistanceConverter)
-        dist_converters.update({'U': dist_converter_u, 'V': dist_converter_v})
+        data_converter_u, data_converter_v = data_converters_func(mesh)
+        data_converters = defaultdict(DistanceConverter)
+        data_converters.update({'U': data_converter_u, 'V': data_converter_v})
         fields = {}
         for var, name in variables.items():
             # Resolve all matching paths for the current variable
@@ -133,7 +134,7 @@ class FieldSet(object):
             dims['data'] = name
             inds = indices[var] if var in indices else indices
 
-            fields[var] = Field.from_netcdf(var, dims, paths, inds, dist_converter=dist_converters[var],
+            fields[var] = Field.from_netcdf(var, dims, paths, inds, data_converter=data_converters[var],
                                             mesh=mesh, allow_time_extrapolation=allow_time_extrapolation, **kwargs)
         u = fields.pop('U')
         v = fields.pop('V')

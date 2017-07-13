@@ -56,8 +56,8 @@ def fieldset_geometric(xdim=200, ydim=100):
     data = {'U': U, 'V': V}
     dimensions = {'lon': lon, 'lat': lat}
     fieldset = FieldSet.from_data(data, dimensions)
-    fieldset.U.dist_converter = Geographic()
-    fieldset.V.dist_converter = Geographic()
+    fieldset.U.data_converter = Geographic()
+    fieldset.V.data_converter = Geographic()
     return fieldset
 
 

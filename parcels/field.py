@@ -139,14 +139,14 @@ class Field(object):
     :param vmax: Maximum allowed value on the field
            Data above this value are set to zero
     :param time_origin: Time origin of the time axis
-    :param dist_converter: type of distance conversion needed for the field (meters or degrees)
+    :param data_converter: type of distance conversion needed for the data (meters or degrees)
     :param mesh: type of mesh of the field (flat or spherical)
     :param interp_method: Method for interpolation
     :param allow_time_extrapolation: boolean whether to allow for extrapolation
     """
 
     def __init__(self, name, data, lon, lat, depth=None, time=None,
-                 transpose=False, vmin=None, vmax=None, time_origin=0, dist_converter=None,
+                 transpose=False, vmin=None, vmax=None, time_origin=0, data_converter=None,
                  mesh='spherical', interp_method='linear', allow_time_extrapolation=None):
         self.name = name
         self.data = data
@@ -155,9 +155,9 @@ class Field(object):
         self.depth = np.zeros(1, dtype=np.float32) if depth is None else depth
         self.time = np.zeros(1, dtype=np.float64) if time is None else time
         self.time_origin = time_origin
-        self.dist_converter = dist_converter if dist_converter is not None else DistanceConverter()
-        self.interp_method = interp_method
+        self.data_converter = data_converter if data_converter is not None else DistanceConverter()
         self.mesh = mesh
+        self.interp_method = interp_method
         if allow_time_extrapolation is None:
             self.allow_time_extrapolation = True if time is None else False
         else:
@@ -411,7 +411,7 @@ class Field(object):
             # excat value in the time array.
             value = self.spatial_interpolation(t_idx, z, y, x)
 
-        return self.dist_converter.to_target(value, x, y, z)
+        return self.data_converter.to_target(value, x, y, z)
 
     def ccode_eval(self, var, t, x, y, z):
         # Casting interp_methd to int as easier to pass on in C-code
@@ -420,7 +420,7 @@ class Field(object):
                self.interp_method.upper())
 
     def ccode_convert(self, _, x, y, z):
-        return self.dist_converter.ccode_to_target(x, y, z)
+        return self.data_converter.ccode_to_target(x, y, z)
 
     @property
     def ctypes_struct(self):
