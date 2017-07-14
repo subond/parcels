@@ -131,7 +131,7 @@ class GeographicSquare(DistanceConverter):
     target_unit = 'degree2'
 
     def to_target(self, value, x, y, z):
-        return (value / 1000. / 1.852 / 60.)**2
+        return value / pow(1000. * 1.852 * 60., 2)
 
     def ccode_to_target(self, x, y, z):
         return "pow(1.0 / (1000.0 * 1.852 * 60.0), 2)"
@@ -145,7 +145,7 @@ class GeographicPolarSquare(DistanceConverter):
     target_unit = 'degree2'
 
     def to_target(self, value, x, y, z):
-        return (value / 1000. / 1.852 / 60. / cos(y * pi / 180))**2
+        return value / pow(1000. * 1.852 * 60. * cos(y * pi / 180), 2)
 
     def ccode_to_target(self, x, y, z):
         return "pow(1.0 / (1000. * 1.852 * 60. * cos(%s * M_PI / 180)), 2)" % y

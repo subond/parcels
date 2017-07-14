@@ -1,5 +1,6 @@
 from parcels import (FieldSet, ParticleSet, BrownianMotion2DFieldKh, JITParticle, ScipyParticle,
                      GeographicPolarSquare, GeographicSquare)
+from parcels import rng as random
 from datetime import timedelta as delta
 from scipy import stats
 import numpy as np
@@ -9,7 +10,7 @@ import pytest
 ptype = {'scipy': ScipyParticle, 'jit': JITParticle}
 
 
-def CreateLinearDiffusionField(mesh='spherical', xdim=50, ydim=50):
+def CreateLinearDiffusionField(mesh='spherical', xdim=200, ydim=200):
     """Generates a non-uniform diffusivity field with a linear gradient in one direction"""
     mesh_conversion = 0.01 if mesh is 'spherical' else 1000
     lon = np.linspace(-30*mesh_conversion, 30*mesh_conversion, xdim, dtype=np.float32)
@@ -35,7 +36,8 @@ def CreateLinearDiffusionField(mesh='spherical', xdim=50, ydim=50):
 @pytest.mark.parametrize('mode', ['scipy', 'jit'])
 def test_linearKh_Brownian(mesh, mode):
     fieldset = CreateLinearDiffusionField(mesh=mesh)
-    npart = 1000
+    npart = 100
+    random.seed(1234)
     pset = ParticleSet(fieldset=fieldset, pclass=ptype[mode],
                        lon=np.zeros(npart), lat=np.zeros(npart))
     pset.execute(pset.Kernel(BrownianMotion2DFieldKh), endtime=delta(days=1), dt=delta(minutes=5))
