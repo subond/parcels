@@ -2,10 +2,19 @@ from parcels.rng import random
 import math
 
 
-__all__ = ['SaptiallyVaryingDiffusion2D']
+__all__ = ['BrownianMotion2DFieldKh', 'SpatiallyVaryingDiffusion2D']
 
 
-def SaptiallyVaryingDiffusion2D(particle, fieldset, time, dt):
+def BrownianMotion2DFieldKh(particle, fieldset, time, dt):
+    # Kernel for simple Brownian particle diffusion in zonal and meridional direction.
+
+    kh = fieldset.Kh[time, particle.lon, particle.lat, particle.depth]
+    r = 1/3.
+    particle.lat += random.uniform(-1., 1.)*math.sqrt(2*dt*kh/r)
+    particle.lon += random.uniform(-1., 1.)*math.sqrt(2*dt*kh/r)
+
+
+def SpatiallyVaryingDiffusion2D(particle, fieldset, time, dt):
     # Diffusion equations for particles in non-uniform diffusivity fields
     # from Ross &  Sharples 2004 and Spagnol et al. 2002
     to_lat = 1 / 1000. / 1.852 / 60.
