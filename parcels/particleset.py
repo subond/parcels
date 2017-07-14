@@ -476,15 +476,7 @@ class ParticleSet(object):
                 Density /= len(dparticles)
 
         if area_scale:
-            area = np.zeros(np.shape(field.data[0, :, :]), dtype=np.float32)
-            U = self.fieldset.U
-            V = self.fieldset.V
-            dy = (V.lon[1] - V.lon[0])/V.data_converter.to_target(1, V.lon[0], V.lat[0], V.depth[0])
-            for y in range(len(U.lat)):
-                dx = (U.lon[1] - U.lon[0])/U.data_converter.to_target(1, U.lon[0], U.lat[y], U.depth[0])
-                area[y, :] = dy * dx
-            # Scale by cell area
-            Density /= np.transpose(area)
+            Density /= field.area()
 
         return Density
 
