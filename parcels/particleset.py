@@ -436,7 +436,7 @@ class ParticleSet(object):
 
     def density(self, field=None, particle_val=None, relative=False, area_scale=True):
         """Method to calculate the density of particles in a ParticleSet from their locations,
-        through a 2D histogram
+        through a 2D histogram. Note that returns array of size (lat, lon)
 
         :param field: Optional :mod:`parcels.field.Field` object to calculate the histogram
                     on. Default is `fieldset.U`
@@ -460,18 +460,18 @@ class ParticleSet(object):
         else:
             field = self.fieldset.U
             dparticles = range(len(self.particles))
-        Density = np.zeros((field.lon.size, field.lat.size), dtype=np.float32)
+        Density = np.zeros((field.lat.size, field.lon.size), dtype=np.float32)
 
         # For each particle, find closest vertex in x and y and add 1 or val to the count
         if particle_val is not None:
             for p in dparticles:
-                Density[np.argmin(np.abs(lons[p] - field.lon)), np.argmin(np.abs(lats[p] - field.lat))] \
+                Density[np.argmin(np.abs(lats[p] - field.lat)), np.argmin(np.abs(lons[p] - field.lon))] \
                     += getattr(self.particles[p], particle_val)
         else:
             for p in dparticles:
                 nearest_lon = np.argmin(np.abs(lons[p] - field.lon))
                 nearest_lat = np.argmin(np.abs(lats[p] - field.lat))
-                Density[nearest_lon, nearest_lat] += 1
+                Density[nearest_lat, nearest_lon] += 1
             if relative:
                 Density /= len(dparticles)
 

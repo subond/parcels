@@ -298,6 +298,7 @@ class Field(object):
         return self.eval(*key)
 
     def cell_distances(self):
+        """Calculate distance between each vertex zonally and meridionally"""
         lon_mesh_converter = lat_mesh_converter = DistanceConverter()
         if self.mesh is 'spherical':
             lon_mesh_converter = GeographicPolar()
@@ -309,10 +310,11 @@ class Field(object):
         return np.array(zonal_distance, dtype=np.float32), np.array(meridonal_distance, dtype=np.float32)
 
     def area(self):
+        """Calculate area of each cell in the mesh. Note that returns array of size (lat, lon)"""
         zonal_distance, meridonal_distance = self.cell_distances()
         area = np.zeros(np.shape(self.data[0, :, :]), dtype=np.float32)
         for y in range(meridonal_distance.size):
-            area[:, y] = meridonal_distance[y] * zonal_distance
+            area[y, :] = meridonal_distance[y] * zonal_distance
         return area
 
     def gradient(self, timerange=None, lonrange=None, latrange=None, name=None):
