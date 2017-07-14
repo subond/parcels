@@ -311,7 +311,7 @@ class Field(object):
     def area(self):
         zonal_distance, meridonal_distance = self.cell_distances()
         area = np.zeros(np.shape(self.data[0, :, :]), dtype=np.float32)
-        for y in range(meridonal_distance):
+        for y in range(meridonal_distance.size):
             area[:, y] = meridonal_distance[y] * zonal_distance
         return area
 

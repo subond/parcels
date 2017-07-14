@@ -142,6 +142,23 @@ def test_fieldset_celldistance():
     assert all(d > 0 for d in np.diff(Vzonal))  # but longitude should decrease
 
 
+def test_fieldset_area():
+    data, dimensions = generate_fieldset(10, 10)
+    fieldset = FieldSet.from_data(data, dimensions)
+    fieldset.U.mesh = 'flat'
+    tol = 1e-5
+    flat_area = fieldset.U.area()
+    assert np.all(cell for cell in flat_area.flatten())
+
+    mesh_area = fieldset.V.area()
+    test_area = np.zeros(fieldset.V.data[0, :, :].shape, dtype=np.float32)
+    mesh_lons, mesh_lats = fieldset.V.cell_distances()
+    for x in range(mesh_lons.size):
+        for y in range(mesh_lats.size):
+            test_area[x, y] = mesh_lons[x] * mesh_lats[y]
+    assert np.all(test_area - mesh_area < tol)
+
+
 def test_fieldset_gradient():
     x = 4
     y = 6
