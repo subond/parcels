@@ -129,6 +129,19 @@ def create_simple_fieldset(x, y, time):
     return field
 
 
+def test_fieldset_celldistance():
+    data, dimensions = generate_fieldset(10, 10)
+    fieldset = FieldSet.from_data(data, dimensions)
+    fieldset.U.mesh = 'flat'
+    Uzonal, Umerdional = fieldset.U.cell_distances()
+    Vzonal, Vmeridonal = fieldset.V.cell_distances()
+    tol = 1e-5
+    assert all(y - Umerdional[0] < tol for y in Umerdional)  # all distances should be the same in flat mesh
+    assert all(x - Uzonal[0] < tol for x in Uzonal)  # including for longitude
+    assert all(y - Vmeridonal[0] < tol for y in Vmeridonal)  # Latitude distances should be equal in spherical mesh
+    assert all(d > 0 for d in np.diff(Vzonal))  # but longitude should decrease
+
+
 def test_fieldset_gradient():
     x = 4
     y = 6

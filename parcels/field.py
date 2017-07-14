@@ -297,6 +297,24 @@ class Field(object):
     def __getitem__(self, key):
         return self.eval(*key)
 
+    def cell_distances(self):
+        lon_mesh_converter = lat_mesh_converter = DistanceConverter()
+        if self.mesh is 'spherical':
+            lon_mesh_converter = GeographicPolar()
+            lat_mesh_converter = Geographic()
+        zonal_distance = [lon_mesh_converter.to_target(d, self.lon[0], lat, self.depth[0])
+                          for d, lat in zip(np.gradient(self.lon), self.lat)]
+        meridonal_distance = [lat_mesh_converter.to_target(d, self.lon[0], self.lat[0], self.depth[0])
+                              for d in np.gradient(self.lat)]
+        return np.array(zonal_distance, dtype=np.float32), np.array(meridonal_distance, dtype=np.float32)
+
+    def area(self):
+        zonal_distance, meridonal_distance = self.cell_distances()
+        area = np.zeros(np.shape(self.data[0, :, :]), dtype=np.float32)
+        for y in range(meridonal_distance):
+            area[:, y] = meridonal_distance[y] * zonal_distance
+        return area
+
     def gradient(self, timerange=None, lonrange=None, latrange=None, name=None):
         """Method to create gradients of Field"""
         if name is None:
