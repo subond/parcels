@@ -1,68 +1,39 @@
-from parcels import Field, FieldSet, JITParticle, ScipyParticle, Variable, SaptiallyVaryingDiffusion2D, random, ErrorCode
+from parcels import Field, FieldSet, ParticleSet, BrownianMotion2DFieldKh, JITParticle, ScipyParticle, Variable, SpatiallyVaryingDiffusion2D, random, ErrorCode
 from operator import attrgetter
+from datetime import timedelta as delta
+import matplotlib.pyplot as plt
 import numpy as np
 import math
 from argparse import ArgumentParser
 import pytest
 
 
-def CreateDiffusionField(fieldset, mu=None):
-    """Generates a non-uniform diffusivity field using a multivariate normal distribution
+def LinearDiffusionField(lon, lat):
+    """Generates a non-uniform diffusivity field with a linear gradient in one direction
     """
-    depth = fieldset.U.depth
-    time = fieldset.U.time
-    lon = fieldset.U.lon
-    lat = fieldset.U.lat
-
-    K = np.zeros((lon.size, lat.size, time.size), dtype=np.float32)
-
-    # Simple multivariate normal pdf function
-    def MVNorm(x, y, mu=[0, 0], sigma=[[100, 0], [0, 100]]):
-        mu_x = mu[0]
-        mu_y = mu[1]
-        sigma = np.array(sigma)
-        sig_x = sigma[0, 0]
-        sig_y = sigma[1, 1]
-        sig_xy = sigma[1, 0]
-
-        pd = 1/(2 * np.pi * sig_x * sig_y * np.sqrt(1 - sig_xy))
-        pd = pd * np.exp(-1 / (2 * (1 - np.power(sig_xy, 2))) * (
-                        ((np.power(x - mu_x, 2)) / np.power(sig_x, 2)) +
-                        ((np.power(y - mu_y, 2)) / np.power(sig_y, 2)) -
-                        ((2 * sig_xy * (x - mu_x) * (y - mu_y)) / (sig_x * sig_y))))
-
-        return pd
-    # Define multivariate mean (mu) and covariance matrix (sig) parameters
-    if mu is None:
-        mu = [np.mean(lon), np.mean(lat)]
-    sig = [[0.01, 0], [0, 0.01]]
-    for i, x in enumerate(lon):
-        for j, y in enumerate(lat):
-            K[i, j, :] = MVNorm(x, y, mu, sig)
-
-    # Scale and invert (to make bowl of low diffusivity)
-    K /= np.max(K) - np.min(K)
-    K -= np.min(K)-0.2
-    K = 1/K
-
-    return Field('K', K, lon, lat, depth, time, transpose=True)
+    Kh = np.zeros((lon.size, lat.size), dtype=np.float32)
+    for x in range(lon.size):
+        Kh[x, :] = x
+    return Field('Kh', Kh, lon, lat, transpose=True)
 
 
-def CreateDummyUV(xdim=200, ydim=200):
-    depth = np.zeros(1, dtype=np.float32)
-    time = np.arange(0., 100000., 100000/2., dtype=np.float64)
-    lon = np.linspace(0, 0.1, xdim, dtype=np.float32)
-    lat = np.linspace(0, 0.1, ydim, dtype=np.float32)
+def CreateZeroAdvectionField(xdim=200, ydim=200):
+    dimensions = {'lon': np.linspace(-10000, 10000, xdim, dtype=np.float32),
+                  'lat': np.linspace(-10000, 10000, ydim, dtype=np.float32)}
 
-    U = np.zeros((lon.size, lat.size, time.size), dtype=np.float32)
-    V = np.zeros((lon.size, lat.size, time.size), dtype=np.float32)
-    ufield = Field('U', U, lon, lat, depth=depth,
-                   time=time, transpose=True)
-    vfield = Field('V', V, lon, lat, depth=depth,
-                   time=time, transpose=True)
+    data = {'U': np.zeros((xdim, ydim), dtype=np.float32),
+            'V': np.zeros((xdim, ydim), dtype=np.float32)}
 
-    return {'U': ufield, 'V': vfield}
+    return FieldSet.from_data(data, dimensions, mesh='flat')
 
+
+fieldset = CreateZeroAdvectionField()
+fieldset.add_field(LinearDiffusionField(fieldset.U.lon, fieldset.U.lat))
+npart = 1000
+pset = ParticleSet(fieldset=fieldset, pclass=JITParticle,
+                   lon=np.zeros(npart), lat=np.zeros(npart))
+pset.execute(pset.Kernel(BrownianMotion2DFieldKh), endtime=delta(days=1), dt=delta(hours=1))
+print np.mean([p.lon for p in pset])
 
 def CreateStartField(lon, lat):
     time = np.arange(0., 100000, 100000/2., dtype=np.float64)
@@ -144,7 +115,7 @@ def diffusion_test(mode, type='true_diffusion', particles=1000, timesteps=1000, 
                              DensityField.lon,
                              DensityField.lat))
 
-    diffuse = diffusers.Kernel(SaptiallyVaryingDiffusion2D) if type == 'true_diffusion' else diffusers.Kernel(LagrangianDiffusionNoCorrection)
+    diffuse = diffusers.Kernel(SpatiallyVaryingDiffusion2D) if type == 'true_diffusion' else diffusers.Kernel(LagrangianDiffusionNoCorrection)
 
     diffusers.execute(diffusers.Kernel(UpdatePosition) + diffuse, endtime=fieldset.U.time[0]+timestep*steps, dt=timestep,
                       output_file=diffusers.ParticleFile(name=args.output+type),
@@ -160,29 +131,3 @@ def diffusion_test(mode, type='true_diffusion', particles=1000, timesteps=1000, 
     print(type + ' end variation = %s' % np.var(EndDensity))
 
     return [StartDensity, EndDensity]
-
-
-if __name__ == "__main__":
-    p = ArgumentParser(description="""
-    Example of diffusion in a non-uniform diffusivity field""")
-    p.add_argument('mode', choices=('scipy', 'jit'), nargs='?', default='jit',
-                   help='Execution mode for performing RK4 computation')
-    p.add_argument('-p', '--particles', type=int, default=1000,
-                   help='Number of particles to advect')
-    p.add_argument('-t', '--timesteps', type=int, default=1000,
-                   help='Timesteps of one second to run simulation over')
-    p.add_argument('-o', '--output', type=str, default='diffusion_test',
-                   help='Output filename')
-    args = p.parse_args()
-
-    # Density fields of random_walkers should show accumulation in the low-diffusivity centre of the space
-    # Diffusers should spread out evenly regardless of this same low-diffusivity
-    densities1 = diffusion_test(args.mode, 'true_diffusion', args.particles, args.timesteps, args.output)
-
-    tol = 0.0001
-    assert np.abs(np.var(densities1[0]) - np.var(densities1[1])) < tol, \
-        'Variance in diffuser particle density across cells is significantly different from start to end of simulation!'
-
-    densities2 = diffusion_test(args.mode, 'brownian_motion', args.particles, args.timesteps, args.output)
-    assert np.abs(np.var(densities2[0]) - np.var(densities2[1])) > tol, \
-        'Variance in brownian motion particle density across cells is not significantly different from start to end of simulation!'
