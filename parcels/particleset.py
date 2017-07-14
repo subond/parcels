@@ -1,5 +1,5 @@
 from parcels.kernel import Kernel
-from parcels.field import Field, UnitConverter
+from parcels.field import Field, DistanceConverter
 from parcels.particle import JITParticle
 from parcels.compiler import GNUCompiler
 from parcels.kernels.advection import AdvectionRK4
@@ -221,7 +221,7 @@ class ParticleSet(object):
                          kernel errors.
         :param show_movie: True shows particles; name of field plots that field as background
         """
-        if self.kernel is None:
+        if self.kernel is None or self.kernel.pyfunc is not pyfunc:
             # Generate and store Kernel
             if isinstance(pyfunc, Kernel):
                 self.kernel = pyfunc
@@ -359,8 +359,8 @@ class ParticleSet(object):
                 timestr = ' after ' + str(delta(seconds=show_time)) + ' hours'
             else:
                 timestr = ' on ' + str(time_origin + delta(seconds=show_time))
-            xlbl = 'Zonal distance [m]' if type(self.fieldset.U.units) is UnitConverter else 'Longitude [degrees]'
-            ylbl = 'Meridional distance [m]' if type(self.fieldset.U.units) is UnitConverter else 'Latitude [degrees]'
+            xlbl = 'Zonal distance [m]' if type(self.fieldset.U.data_converter) is DistanceConverter else 'Longitude [degrees]'
+            ylbl = 'Meridional distance [m]' if type(self.fieldset.U.data_converter) is DistanceConverter else 'Latitude [degrees]'
             plt.xlabel(xlbl)
             plt.ylabel(ylbl)
         elif Basemap is None:
@@ -483,9 +483,9 @@ class ParticleSet(object):
             area = np.zeros(np.shape(field.data[0, :, :]), dtype=np.float32)
             U = self.fieldset.U
             V = self.fieldset.V
-            dy = (V.lon[1] - V.lon[0])/V.units.to_target(1, V.lon[0], V.lat[0])
+            dy = (V.lon[1] - V.lon[0])/V.data_converter.to_target(1, V.lon[0], V.lat[0])
             for y in range(len(U.lat)):
-                dx = (U.lon[1] - U.lon[0])/U.units.to_target(1, U.lon[0], U.lat[y])
+                dx = (U.lon[1] - U.lon[0])/U.data_converter.to_target(1, U.lon[0], U.lat[y])
                 area[y, :] = dy * dx
             # Scale by cell area
             Density /= np.transpose(area)

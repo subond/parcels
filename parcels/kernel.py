@@ -102,7 +102,7 @@ class Kernel(object):
 
     @property
     def _cache_key(self):
-        field_keys = "-".join(["%s:%s" % (name, field.units.__class__.__name__)
+        field_keys = "-".join(["%s:%s" % (name, field.data_converter.__class__.__name__)
                                for name, field in self.field_args.items()])
         key = self.name + self.ptype._cache_key + field_keys
         return md5(key.encode('utf-8')).hexdigest()
@@ -190,7 +190,7 @@ class Kernel(object):
             for p in error_particles:
                 recovery_kernel = recovery_map[p.state]
                 p.state = ErrorCode.Success
-                recovery_kernel(p)
+                recovery_kernel(p, self.fieldset, p.time, dt)
 
             # Remove all particles that signalled deletion
             remove_deleted(pset)

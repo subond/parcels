@@ -32,11 +32,10 @@ class TimeExtrapolationError(RuntimeError):
     """Utility error class to propagate erroneous time extrapolation sampling"""
 
     def __init__(self, time, field=None):
-        self.field = field
-        self.time = time
-        message = "%s sampled outside time domain at time %f." % (
-            field.name if field else "Field", self.time
-        )
+        if field is not None and field.time_origin != 0:
+            time = field.time_origin + timedelta(seconds=time)
+        message = "%s sampled outside time domain at time %s." % (
+            field.name if field else "Field", time)
         message += " Try setting allow_time_extrapolation to True"
         super(TimeExtrapolationError, self).__init__(message)
 
@@ -79,8 +78,8 @@ def CentralDifferences(field_data, lat, lon):
     return [dVdx, dVdy]
 
 
-class UnitConverter(object):
-    """ Interface class for spatial unit conversion during field sampling
+class DistanceConverter(object):
+    """ Interface class for spatial distance conversion during field sampling
         that performs no conversion.
     """
     source_unit = None
@@ -99,8 +98,8 @@ class UnitConverter(object):
         return "1.0"
 
 
-class Geographic(UnitConverter):
-    """ Unit converter from geometric to geographic coordinates (m to degree) """
+class Geographic(DistanceConverter):
+    """ Distance converter from geometric to geographic coordinates (m to degree) """
     source_unit = 'm'
     target_unit = 'degree'
 
@@ -111,8 +110,8 @@ class Geographic(UnitConverter):
         return "(1.0 / (1000.0 * 1.852 * 60.0))"
 
 
-class GeographicPolar(UnitConverter):
-    """ Unit converter from geometric to geographic coordinates (m to degree)
+class GeographicPolar(DistanceConverter):
+    """ Distance converter from geometric to geographic coordinates (m to degree)
         with a correction to account for narrower grid cells closer to the poles.
     """
     source_unit = 'm'
@@ -140,14 +139,15 @@ class Field(object):
     :param vmax: Maximum allowed value on the field
            Data above this value are set to zero
     :param time_origin: Time origin of the time axis
-    :param units: type of units of the field (meters or degrees)
+    :param data_converter: type of distance conversion needed for the data (meters or degrees)
+    :param mesh: type of mesh of the field (flat or spherical)
     :param interp_method: Method for interpolation
     :param allow_time_extrapolation: boolean whether to allow for extrapolation
     """
 
     def __init__(self, name, data, lon, lat, depth=None, time=None,
-                 transpose=False, vmin=None, vmax=None, time_origin=0, units=None,
-                 interp_method='linear', allow_time_extrapolation=None):
+                 transpose=False, vmin=None, vmax=None, time_origin=0, data_converter=None,
+                 mesh='spherical', interp_method='linear', allow_time_extrapolation=None):
         self.name = name
         self.data = data
         self.lon = lon
@@ -155,7 +155,8 @@ class Field(object):
         self.depth = np.zeros(1, dtype=np.float32) if depth is None else depth
         self.time = np.zeros(1, dtype=np.float64) if time is None else time
         self.time_origin = time_origin
-        self.units = units if units is not None else UnitConverter()
+        self.data_converter = data_converter if data_converter is not None else DistanceConverter()
+        self.mesh = mesh
         self.interp_method = interp_method
         if allow_time_extrapolation is None:
             self.allow_time_extrapolation = True if time is None else False
@@ -393,7 +394,7 @@ class Field(object):
     def eval(self, time, x, y, z):
         """Interpolate field values in space and time.
 
-        We interpolate linearly in time and apply implicit unit
+        We interpolate linearly in time and apply implicit distance
         conversion to the result. Note that we defer to
         scipy.interpolate to perform spatial interpolation.
         """
@@ -410,7 +411,7 @@ class Field(object):
             # excat value in the time array.
             value = self.spatial_interpolation(t_idx, z, y, x)
 
-        return self.units.to_target(value, x, y, z)
+        return self.data_converter.to_target(value, x, y, z)
 
     def ccode_eval(self, var, t, x, y, z):
         # Casting interp_methd to int as easier to pass on in C-code
@@ -419,7 +420,7 @@ class Field(object):
                self.interp_method.upper())
 
     def ccode_convert(self, _, x, y, z):
-        return self.units.ccode_to_target(x, y, z)
+        return self.data_converter.ccode_to_target(x, y, z)
 
     @property
     def ctypes_struct(self):
