@@ -277,19 +277,18 @@ class Field(object):
         if self.mesh is 'spherical':
             lon_mesh_converter = GeographicPolar()
             lat_mesh_converter = Geographic()
-        zonal_distance = [lon_mesh_converter.to_source(d, self.lon[0], lat, self.depth[0])
-                          for d, lat in zip(np.gradient(self.lon), self.lat)]
-        meridonal_distance = [lat_mesh_converter.to_source(d, self.lon[0], self.lat[0], self.depth[0])
-                              for d in np.gradient(self.lat)]
-        return np.array(zonal_distance, dtype=np.float32), np.array(meridonal_distance, dtype=np.float32)
+        celldist_lon = np.zeros((len(self.lat), len(self.lon)), dtype=np.float32)
+        celldist_lat = np.zeros((len(self.lat), len(self.lon)), dtype=np.float32)
+        for y in range(len(self.lat)):
+            for d, x in zip(np.gradient(self.lon), range(len(self.lon))):
+                celldist_lon[y, x] = lon_mesh_converter.to_source(d, self.lon[x], self.lat[y], self.depth[0])
+                celldist_lat[y, x] = lat_mesh_converter.to_source(d, self.lon[x], self.lat[y], self.depth[0])
+        return celldist_lon, celldist_lat
 
     def area(self):
         """Calculate area of each cell in the mesh. Note that returns array of size (lat, lon)"""
-        zonal_distance, meridonal_distance = self.cell_distances()
-        area = np.zeros(np.shape(self.data[0, :, :]), dtype=np.float32)
-        for y in range(meridonal_distance.size):
-            area[y, :] = meridonal_distance[y] * zonal_distance
-        return area
+        celldist_lon, celldist_lat = self.cell_distances()
+        return np.multiply(celldist_lon, celldist_lat)
 
     def gradient(self, timerange=None, name=None):
         """Method to create gradients of Field"""
@@ -305,12 +304,10 @@ class Field(object):
 
         dVdx = np.zeros(shape=(time.size, self.lat.size, self.lon.size), dtype=np.float32)
         dVdy = np.zeros(shape=(time.size, self.lat.size, self.lon.size), dtype=np.float32)
-        celldist_x, celldist_y = self.cell_distances()
-        celldist_x = np.transpose(np.tile(celldist_x, (self.lon.size, 1)))
-        celldist_y = np.transpose(np.tile(celldist_y, (self.lon.size, 1)))
+        celldist_lon, celldist_lat = self.cell_distances()
         for t in np.nditer(np.int32(time_i)):
-            dVdy[t, :, :] = np.gradient(self.data[t, :, :], axis=0)/celldist_y
-            dVdx[t, :, :] = np.gradient(self.data[t, :, :], axis=1)/celldist_x
+            dVdy[t, :, :] = np.gradient(self.data[t, :, :], axis=0)/celldist_lat
+            dVdx[t, :, :] = np.gradient(self.data[t, :, :], axis=1)/celldist_lon
 
         return([Field(name + '_dx', dVdx, self.lon, self.lat, self.depth, time, mesh=self.mesh,
                       interp_method=self.interp_method, allow_time_extrapolation=self.allow_time_extrapolation),
