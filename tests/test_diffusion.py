@@ -35,10 +35,10 @@ def CreateLinearDiffusionField(mesh='spherical', xdim=200, ydim=100):
 
 
 @pytest.mark.parametrize('mesh', ['spherical', 'flat'])
-@pytest.mark.parametrize('mode', ['scipy', 'jit'])
+@pytest.mark.parametrize('mode', ['jit'])
 def test_linearKh_Brownian(mesh, mode):
     fieldset = CreateLinearDiffusionField(mesh=mesh)
-    npart = 100
+    npart = 10000
     random.seed(1234)
     pset = ParticleSet(fieldset=fieldset, pclass=ptype[mode],
                        lon=np.zeros(npart), lat=np.zeros(npart))
@@ -47,7 +47,7 @@ def test_linearKh_Brownian(mesh, mode):
 
 
 @pytest.mark.parametrize('mesh', ['spherical', 'flat'])
-@pytest.mark.parametrize('mode', ['scipy', 'jit'])
+@pytest.mark.parametrize('mode', ['jit'])
 def test_SpatiallyVaryingDiffusion2D(mesh, mode):
     fieldset = CreateLinearDiffusionField(mesh=mesh)
 
