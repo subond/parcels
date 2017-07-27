@@ -20,7 +20,7 @@ def CreateLinearDiffusionField(mesh='spherical', xdim=200, ydim=100):
 
     Kh = np.zeros((xdim, ydim), dtype=np.float32)
     for x in range(xdim):
-        Kh[x, :] = np.tanh(lon[x]/lon[-1]*10.)*xdim/2.+xdim/2.
+        Kh[x, :] = np.tanh(lon[x]/lon[-1]*10.)*xdim/2.+xdim/2. + 100.
     dimensions = {'lon': lon, 'lat': lat}
     data = {'U': np.zeros((xdim, ydim), dtype=np.float32),
             'V': np.zeros((xdim, ydim), dtype=np.float32),
@@ -52,12 +52,12 @@ def test_SpatiallyVaryingDiffusion2D(mesh, mode):
     fieldset = CreateLinearDiffusionField(mesh=mesh)
 
     dKh_zonal_dx = fieldset.Kh_zonal.gradient()[0]
-    dKh_zonal_dx.data_converter = GeographicPolar()
     fieldset.add_field(dKh_zonal_dx)
-
     dKh_meridional_dy = fieldset.Kh_meridional.gradient()[1]
-    dKh_meridional_dy.data_converter = Geographic()
     fieldset.add_field(dKh_meridional_dy)
+    if mesh is 'spherical':
+        fieldset.dKh_zonal_dx.data_converter = GeographicPolar()
+        fieldset.dKh_meridional_dy.data_converter = Geographic()
 
     npart = 10000
     random.seed(1234)
