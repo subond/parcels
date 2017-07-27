@@ -10,8 +10,6 @@ from math import cos, pi
 from datetime import timedelta, datetime
 from dateutil.parser import parse
 
-import matplotlib.pyplot as plt
-
 
 __all__ = ['Field', 'Geographic', 'GeographicPolar',
            'GeographicSquare', 'GeographicPolarSquare']
