@@ -44,6 +44,7 @@ def test_linearKh_Brownian(mesh, mode):
                        lon=np.zeros(npart), lat=np.zeros(npart))
     pset.execute(pset.Kernel(BrownianMotion2DFieldKh), endtime=delta(days=1), dt=delta(minutes=5))
     assert(abs(stats.skew([p.lon for p in pset]) / stats.skew([p.lat for p in pset])) > 10)
+    return pset
 
 
 @pytest.mark.parametrize('mesh', ['spherical', 'flat'])
@@ -65,7 +66,24 @@ def test_SpatiallyVaryingDiffusion2D(mesh, mode):
                        lon=np.zeros(npart), lat=np.zeros(npart))
     pset.execute(pset.Kernel(SpatiallyVaryingDiffusion2D), endtime=delta(days=1), dt=delta(minutes=5))
 
-    x = [p.lon for p in pset]
-    r = max([-min(x), max(x)])
-    plt.hist(x, np.linspace(-r, r, 100))
+    return pset
+
+
+def plot_histograms(mesh, mode):
+    pset = [test_linearKh_Brownian(mesh, mode),
+            test_SpatiallyVaryingDiffusion2D(mesh, mode)]
+    fig = plt.figure()
+    for i, name in enumerate(['Brown', 'SpVar']):
+        ax = fig.add_subplot(2, 1, i+1)
+        x = [p.lon for p in pset[i]]
+        r = max([-min(x), max(x)])
+        ax.hist(x, np.linspace(-r, r, 100))
+        ax.set_title(name)
+        ax.grid()
+        skewx, skewy = stats.skew([p.lon for p in pset[i]]), stats.skew([p.lat for p in pset[i]])
+        print name + ' skewness in x-dir: ' + str(skewx) + ' and in ydir: ' + str(skewy)
     plt.show()
+
+
+if __name__ == "__main__":
+    plot_histograms('spherical', 'jit')
