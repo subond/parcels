@@ -83,7 +83,7 @@ class FieldSet(object):
             fields[name] = Field(name, datafld, lon, lat, depth=depth,
                                  time=time, transpose=transpose, data_converter=data_converters[name],
                                  mesh=mesh, allow_time_extrapolation=allow_time_extrapolation,
-                                 time_periodic=False, **kwargs)
+                                 time_periodic=time_periodic, **kwargs)
         u = fields.pop('U')
         v = fields.pop('V')
         return cls(u, v, fields=fields)
@@ -141,7 +141,7 @@ class FieldSet(object):
 
             fields[var] = Field.from_netcdf(var, dims, paths, inds, data_converter=data_converters[var],
                                             mesh=mesh, allow_time_extrapolation=allow_time_extrapolation,
-                                            time_periodic=False, **kwargs)
+                                            time_periodic=time_periodic, **kwargs)
         u = fields.pop('U')
         v = fields.pop('V')
         return cls(u, v, fields=fields)
