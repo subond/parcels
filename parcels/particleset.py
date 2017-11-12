@@ -227,6 +227,7 @@ class ParticleSet(object):
                 self.kernel = self.Kernel(pyfunc)
             # Prepare JIT kernel execution
             if self.ptype.uses_jit:
+                self.kernel.remove_lib()
                 self.kernel.compile(compiler=GNUCompiler())
                 self.kernel.load_lib()
 
@@ -363,9 +364,11 @@ class ParticleSet(object):
             plt.ylabel(ylbl)
         elif Basemap is None:
             logger.info("Visualisation is not possible. Basemap not found.")
+            time_origin = self.fieldset.U.time_origin
         else:
             time_origin = self.fieldset.U.time_origin
-            idx = self.fieldset.U.time_index(show_time)
+            (idx, periods) = self.fieldset.U.time_index(show_time)
+            show_time -= periods*(self.fieldset.U.time[-1]-self.fieldset.U.time[0])
             U = np.array(self.fieldset.U.temporal_interpolate_fullfield(idx, show_time))
             V = np.array(self.fieldset.V.temporal_interpolate_fullfield(idx, show_time))
             lon = self.fieldset.U.lon
