@@ -124,8 +124,6 @@ class ParticleSet(object):
         :param depth: Optional list of initial depth values for particles. Default is 0m
         :param time: Optional start time value for particles. Default is fieldset.U.time[0]
         """
-        total = np.sum(start_field.data[0, :, :])
-        start_field.data[0, :, :] = start_field.data[0, :, :] / total
         lonwidth = (start_field.lon[1] - start_field.lon[0]) / 2
         latwidth = (start_field.lat[1] - start_field.lat[0]) / 2
 
@@ -136,16 +134,14 @@ class ParticleSet(object):
             return value
 
         if mode == 'monte_carlo':
-            probs = np.random.uniform(size=size)
-            lon = []
-            lat = []
-            for p in probs:
-                cell = np.unravel_index(np.where([p < i for i in np.cumsum(start_field.data[0, :, :])])[0][0],
-                                        np.shape(start_field.data[0, :, :]))
-                lon.append(add_jitter(start_field.lon[cell[1]], lonwidth,
-                                      start_field.lon.min(), start_field.lon.max()))
-                lat.append(add_jitter(start_field.lat[cell[0]], latwidth,
-                                      start_field.lat.min(), start_field.lat.max()))
+            p = np.reshape(start_field.data, (1, start_field.data.size))
+            inds = np.random.choice(start_field.data.size, size, replace=True, p=p[0] / np.sum(p))
+            lat, lon = np.unravel_index(inds, start_field.data[0, :, :].shape)
+            lon = fieldset.U.lon[lon]
+            lat = fieldset.U.lat[lat]
+            for i in range(lon.size):
+                lon[i] = add_jitter(lon[i], lonwidth, start_field.lon[0], start_field.lon[-1])
+                lat[i] = add_jitter(lat[i], latwidth, start_field.lat[0], start_field.lat[-1])
         else:
             raise NotImplementedError('Mode %s not implemented. Please use "monte carlo" algorithm instead.' % mode)
 
@@ -221,7 +217,9 @@ class ParticleSet(object):
                          kernel errors.
         :param show_movie: True shows particles; name of field plots that field as background
         """
-        if self.kernel is None or self.kernel.pyfunc is not pyfunc:
+
+        # check if pyfunc has changed since last compile. If so, recompile
+        if self.kernel is None or (self.kernel.pyfunc is not pyfunc and self.kernel is not pyfunc):
             # Generate and store Kernel
             if isinstance(pyfunc, Kernel):
                 self.kernel = pyfunc
@@ -229,6 +227,7 @@ class ParticleSet(object):
                 self.kernel = self.Kernel(pyfunc)
             # Prepare JIT kernel execution
             if self.ptype.uses_jit:
+                self.kernel.remove_lib()
                 self.kernel.compile(compiler=GNUCompiler())
                 self.kernel.load_lib()
 
@@ -365,9 +364,11 @@ class ParticleSet(object):
             plt.ylabel(ylbl)
         elif Basemap is None:
             logger.info("Visualisation is not possible. Basemap not found.")
+            time_origin = self.fieldset.U.time_origin
         else:
             time_origin = self.fieldset.U.time_origin
-            idx = self.fieldset.U.time_index(show_time)
+            (idx, periods) = self.fieldset.U.time_index(show_time)
+            show_time -= periods*(self.fieldset.U.time[-1]-self.fieldset.U.time[0])
             U = np.array(self.fieldset.U.temporal_interpolate_fullfield(idx, show_time))
             V = np.array(self.fieldset.V.temporal_interpolate_fullfield(idx, show_time))
             lon = self.fieldset.U.lon
@@ -483,9 +484,9 @@ class ParticleSet(object):
             area = np.zeros(np.shape(field.data[0, :, :]), dtype=np.float32)
             U = self.fieldset.U
             V = self.fieldset.V
-            dy = (V.lon[1] - V.lon[0])/V.data_converter.to_target(1, V.lon[0], V.lat[0])
+            dy = (V.lon[1] - V.lon[0])/V.data_converter.to_target(1, V.lon[0], V.lat[0], V.depth[0])
             for y in range(len(U.lat)):
-                dx = (U.lon[1] - U.lon[0])/U.data_converter.to_target(1, U.lon[0], U.lat[y])
+                dx = (U.lon[1] - U.lon[0])/U.data_converter.to_target(1, U.lon[0], U.lat[y], V.depth[0])
                 area[y, :] = dy * dx
             # Scale by cell area
             Density /= np.transpose(area)
